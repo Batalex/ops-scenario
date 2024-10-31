@@ -6,7 +6,18 @@ import functools
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Type, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generic,
+    List,
+    Mapping,
+    Optional,
+    Type,
+    Union,
+    cast,
+)
 
 import ops
 
@@ -15,6 +26,7 @@ from scenario.logger import logger as scenario_logger
 from scenario.runtime import Runtime
 from scenario.state import (
     ActionFailed,
+    CharmType,
     CheckInfo,
     Container,
     MetadataNotFoundError,
@@ -33,21 +45,14 @@ if TYPE_CHECKING:  # pragma: no cover
         from ops.testing import ExecArgs  # type: ignore
 
     from scenario.ops_main_mock import Ops
-    from scenario.state import (
-        AnyJson,
-        CharmType,
-        JujuLogLine,
-        RelationBase,
-        State,
-        _EntityStatus,
-    )
+    from scenario.state import AnyJson, JujuLogLine, RelationBase, State, _EntityStatus
 
 logger = scenario_logger.getChild("runtime")
 
 _DEFAULT_JUJU_VERSION = "3.5"
 
 
-class Manager:
+class Manager(Generic[CharmType]):
     """Context manager to offer test code some runtime charm object introspection.
 
     This class should not be instantiated directly: use a :class:`Context`
@@ -61,7 +66,7 @@ class Manager:
 
     def __init__(
         self,
-        ctx: "Context",
+        ctx: "Context[CharmType]",
         arg: _Event,
         state_in: "State",
     ):
@@ -74,7 +79,7 @@ class Manager:
         self.ops: Optional["Ops"] = None
 
     @property
-    def charm(self) -> ops.CharmBase:
+    def charm(self) -> CharmType:
         """The charm object instantiated by ops to handle the event.
 
         The charm is only available during the context manager scope.
@@ -83,7 +88,7 @@ class Manager:
             raise RuntimeError(
                 "you should __enter__ this context manager before accessing this",
             )
-        return cast(ops.CharmBase, self.ops.charm)
+        return cast(CharmType, self.ops.charm)
 
     @property
     def _runner(self):
@@ -347,7 +352,7 @@ class CharmEvents:
         return _Event(f"{name}_action", action=_Action(name, **kwargs))
 
 
-class Context:
+class Context(Generic[CharmType]):
     """Represents a simulated charm's execution context.
 
     The main entry point to running a test. It contains:
